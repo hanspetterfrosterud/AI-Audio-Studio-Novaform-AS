@@ -1,0 +1,32 @@
+{
+  "name": "AI Audio Studio – Novaform AS",
+  "short_name": "Audio Studio",
+  "description": "Ta opp, transkriber og analyser lyd med AI",
+  "start_url": "/AI-Audio-Studio-Novaform-AS/",
+  "scope": "/AI-Audio-Studio-Novaform-AS/",
+  "display": "standalone",
+  "background_color": "#0D0E12",
+  "theme_color": "#FFC000",
+  "orientation": "portrait-primary",
+  "lang": "no",
+  "dir": "ltr",
+  "categories": ["productivity", "utilities"],
+  "screenshots": [],
+  "shortcuts": [],
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}
