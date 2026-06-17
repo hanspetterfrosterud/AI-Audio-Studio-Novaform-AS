@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#FFC000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AI Audio Studio">
+<link rel="manifest" href="manifest.json">
+<title>AI Audio Studio – Novaform</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0D0E12; --surface: #15171E; --card: #1C1F2A;
+  --border: #252836; --accent: #FFC000; --accent-dim: rgba(255,192,0,0.12);
+  --text: #F0F0F4; --muted: #8A8FA8; --danger: #FF4D6D; --success: #22D3A4;
+}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; max-width: 640px; margin: 0 auto; padding-bottom: 80px; }
+
+header { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--bg); z-index:10; }
+.logo-wrap { display:flex; align-items:center; gap:10px; }
+.logo { width:36px; height:36px; background:var(--accent); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; }
+.app-name { font-weight:700; font-size:15px; }
+.app-sub { font-size:11px; color:var(--muted); }
+.rec-badge { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--danger); background:rgba(255,77,109,0.12); padding:4px 10px; border-radius:20px; }
+.rec-dot { width:7px; height:7px; border-radius:50%; background:var(--danger); animation:blink 1s ease-in-out infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Key panel */
+#key-panel { display:none; padding:14px 16px; background:var(--card); border-bottom:1px solid var(--border); }
+#key-panel.open { display:block; }
+#key-panel label { font-size:12px; color:var(--muted); display:block; margin-bottom:6px; }
+.key-row { display:flex; gap:8px; }
+
+/* Tabs */
+nav { display:flex; border-bottom:1px solid var(--border); }
+.tab { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:10px 6px; background:none; border:none; border-bottom:2px solid transparent; color:var(--muted); cursor:pointer; font-size:11px; font-weight:500; transition:color 0.15s; }
+.tab span.icon { font-size:20px; }
+.tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+.section { padding:16px; display:flex; flex-direction:column; gap:14px; }
+.section.hidden { display:none; }
+.card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px; }
+.card-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:12px; }
+
+/* Waveform */
+#waveform-canvas { width:100%; height:72px; border-radius:10px; background:var(--bg); display:block; }
+
+/* Live transcript */
+.live-box { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:14px; min-height:100px; font-size:14px; line-height:1.7; margin-top:14px; position:relative; }
+.live-label { position:absolute; top:-10px; left:12px; background:var(--card); padding:0 6px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent); }
+.live-interim { color:var(--muted); font-style:italic; }
+.live-placeholder { color:var(--muted); font-size:13px; font-style:italic; }
+
+/* Toggle */
+.toggle-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.toggle-info .tl { font-size:13px; font-weight:600; }
+.toggle-info .ts { font-size:11px; color:var(--muted); margin-top:2px; }
+.switch { position:relative; width:42px; height:24px; flex-shrink:0; }
+.switch input { opacity:0; width:0; height:0; }
+.slider { position:absolute; cursor:pointer; top:0;left:0;right:0;bottom:0; background:var(--border); border-radius:24px; transition:.3s; }
+.slider:before { position:absolute; content:""; height:18px; width:18px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:.3s; }
+input:checked + .slider { background:var(--accent); }
+input:checked + .slider:before { transform:translateX(18px); }
+
+/* Buttons */
+.btn-record { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; background:var(--accent); color:#0D0E12; border:none; border-radius:12px; padding:16px; font-weight:700; font-size:16px; cursor:pointer; }
+.btn-stop { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; background:var(--danger); color:#fff; border:none; border-radius:12px; padding:16px; font-weight:700; font-size:16px; cursor:pointer; }
+.btn-pause { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:12px; padding:14px; font-weight:600; font-size:14px; cursor:pointer; }
+.btn-primary { display:inline-flex; align-items:center; gap:7px; background:var(--accent); color:#0D0E12; border:none; border-radius:10px; padding:10px 18px; font-weight:700; font-size:13px; cursor:pointer; }
+.btn-secondary { display:inline-flex; align-items:center; gap:7px; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:10px; padding:10px 18px; font-weight:600; font-size:13px; cursor:pointer; }
+.btn-sm { display:inline-flex; align-items:center; gap:5px; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:7px 12px; font-weight:500; font-size:12px; cursor:pointer; }
+.btn-danger { display:inline-flex; align-items:center; gap:5px; background:rgba(255,77,109,0.12); color:var(--danger); border:1px solid rgba(255,77,109,0.3); border-radius:8px; padding:7px 12px; font-weight:600; font-size:12px; cursor:pointer; }
+button:disabled { opacity:0.4; cursor:default; }
+button:active:not(:disabled) { opacity:0.8; }
+
+input[type=text], input[type=password], input[type=date], textarea, select {
+  background:var(--surface); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; color:var(--text); font-size:14px; outline:none; font-family:inherit; width:100%;
+}
+textarea { resize:vertical; line-height:1.65; }
+
+/* Import area */
+.import-area { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; width:100%; border:2px dashed var(--border); border-radius:12px; padding:28px 16px; cursor:pointer; color:var(--muted); font-size:14px; font-weight:500; text-align:center; transition:border-color 0.2s; }
+.import-area:hover { border-color:var(--accent); }
+.import-area .imp-icon { font-size:36px; }
+.import-hint { font-size:11px; color:var(--muted); margin-top:4px; }
+
+/* Player */
+.player { display:flex; align-items:center; gap:10px; padding:12px 0; }
+.player-btn { background:var(--accent-dim); border:none; cursor:pointer; border-radius:8px; padding:8px; font-size:16px; line-height:1; }
+.progress-bar { flex:1; height:5px; background:var(--border); border-radius:4px; cursor:pointer; }
+.progress-fill { height:100%; background:var(--accent); border-radius:4px; width:0%; transition:width 0.1s; pointer-events:none; }
+.player-time { font-size:11px; color:var(--muted); white-space:nowrap; }
+
+/* Report fields */
+.field-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+.field-row.single { grid-template-columns:1fr; }
+.field-label { font-size:11px; color:var(--muted); margin-bottom:4px; font-weight:600; }
+
+/* Stats bar */
+.status-bar { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); margin-top:10px; }
+.status-dot { width:7px; height:7px; border-radius:50%; background:var(--border); }
+.status-dot.active { background:var(--success); animation:blink 1s infinite; }
+
+/* Format grid */
+.fmt-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:14px; }
+.fmt-btn { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 8px; cursor:pointer; text-align:center; color:var(--text); }
+.fmt-btn.selected { border-color:var(--accent); background:var(--accent-dim); }
+.fmt-btn .fi { font-size:22px; }
+.fmt-btn .fl { font-size:12px; font-weight:600; margin-top:6px; }
+
+/* Toast */
+#toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); color:#fff; font-weight:600; font-size:13px; padding:10px 22px; border-radius:24px; z-index:999; box-shadow:0 4px 20px rgba(0,0,0,0.5); pointer-events:none; opacity:0; transition:opacity 0.25s; white-space:nowrap; max-width:90vw; text-align:center; }
+#toast.show { opacity:1; }
+
+.divider { border:none; border-top:1px solid var(--border); margin:14px 0; }
+.tip-box { background:var(--accent-dim); border:1px solid rgba(255,192,0,0.2); border-radius:10px; padding:12px 14px; font-size:12px; line-height:1.6; color:var(--text); }
+.tip-box strong { color:var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-wrap">
+    <div class="logo">🎙️</div>
+    <div>
+      <div class="app-name">AI Audio Studio</div>
+      <div class="app-sub">Novaform AS</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <div class="rec-badge" id="rec-badge" style="display:none">
+      <div class="rec-dot"></div>
+      <span id="rec-timer">00:00</span>
+    </div>
+    <button onclick="toggleKeyPanel()" style="background:none;border:none;cursor:pointer;font-size:20px;">⚙️</button>
+  </div>
+</header>
+
+<!-- Key panel -->
+<div id="key-panel">
+  <label>Groq API-nøkkel – gratis på console.groq.com (for Whisper transkripsjon)</label>
+  <div class="key-row">
+    <input type="password" id="groq-key" placeholder="gsk_..." />
+    <button class="btn-primary" onclick="saveGroqKey()">Lagre</button>
+  </div>
+</div>
+
+<!-- Tabs -->
+<nav>
+  <button class="tab active" onclick="showTab('record',this)"><span class="icon">🎙️</span>Ta opp</button>
+  <button class="tab" onclick="showTab('import',this)"><span class="icon">⬆️</span>Importer</button>
+  <button class="tab" onclick="showTab('trans',this)"><span class="icon">📝</span>Transkripsjon</button>
+  <button class="tab" onclick="showTab('rapport',this)"><span class="icon">📋</span>Rapport</button>
+</nav>
+
+<!-- ══════════════ TA OPP ══════════════ -->
+<div class="section" id="tab-record">
+
+  <div class="card">
+    <!-- Live transcript toggle -->
+    <div class="toggle-row">
+      <div class="toggle-info">
+        <div class="tl">🔴 Sanntidstranskripsjon</div>
+        <div class="ts">Fungerer på alle enheter med Groq-nøkkel, eller nettleser-API på PC</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="live-toggle" onchange="toggleLive(this.checked)">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="toggle-row" style="margin-top:4px">
+      <div class="toggle-info">
+        <div class="tl">✨ Auto-transkriber etter opptak</div>
+        <div class="ts">Bruker Groq Whisper – krever API-nøkkel (⚙️)</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="auto-trans-toggle" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <canvas id="waveform-canvas" width="600" height="72"></canvas>
+
+    <!-- Live text output -->
+    <div id="live-box" class="live-box" style="display:none">
+      <div class="live-label">LIVE TRANSKRIPSJON</div>
+      <span id="live-placeholder" class="live-placeholder">Begynn å snakke…</span>
+      <span id="live-final"></span><span id="live-interim" class="live-interim"></span>
+    </div>
+
+    <div class="status-bar" id="live-status" style="display:none">
+      <div class="status-dot" id="live-dot"></div>
+      <span id="live-status-txt">Klar</span>
+      <button class="btn-sm" style="margin-left:auto" onclick="clearLive()">🗑️ Tøm</button>
+      <button class="btn-sm" onclick="sendLiveToRapport()">📋 Send til rapport</button>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:16px;" id="rec-btns">
+      <button class="btn-record" id="btn-start" onclick="startRec()">🎙️ Start opptak</button>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px;display:none" id="rec-btns-active">
+      <button class="btn-pause" id="btn-pause" onclick="pauseRec()" style="flex:1">⏸️ Pause</button>
+      <button class="btn-stop" onclick="stopRec()" style="flex:1">⏹️ Stopp</button>
+    </div>
+  </div>
+
+
+
+</div>
+
+<!-- ══════════════ IMPORTER ══════════════ -->
+<div class="section hidden" id="tab-import">
+
+  <div class="card">
+    <label class="import-area" for="file-input">
+      <div class="imp-icon">⬆️</div>
+      <div>Trykk for å importere lydfil</div>
+      <div class="import-hint">MP3, M4A, WAV, WEBM, MP4, OGG…</div>
+      <input type="file" id="file-input" accept="audio/*,video/*" style="display:none" onchange="importFile(event)">
+    </label>
+  </div>
+
+  <div id="import-player-card" style="display:none" class="card">
+    <div class="card-label">Importert fil</div>
+    <div id="import-filename" style="font-weight:600;font-size:14px;margin-bottom:4px;"></div>
+    <div id="import-meta" style="font-size:12px;color:var(--muted);margin-bottom:10px;"></div>
+    <div class="player">
+      <button class="player-btn" onclick="toggleImportPlay()"><span id="import-play-icon">▶️</span></button>
+      <div class="progress-bar" onclick="seekImport(event)"><div class="progress-fill" id="import-fill"></div></div>
+      <span class="player-time" id="import-time">00:00</span>
+    </div>
+    <audio id="import-audio" style="display:none" ontimeupdate="updateImportProgress()" onended="importEnded()"></audio>
+
+    <hr class="divider">
+    <div class="card-label">Transkriber med Whisper AI (Groq)</div>
+    <button class="btn-primary" id="btn-transcribe" onclick="transcribeImport()" style="width:100%">✨ Transkriber nå</button>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px;">Krever gratis Groq API-nøkkel (⚙️ øverst). Norsk språk.</div>
+  </div>
+
+  <div id="import-transcript-card" style="display:none" class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div class="card-label" style="margin:0">Transkripsjon</div>
+      <button class="btn-sm" onclick="sendImportToRapport()">📋 Send til rapport</button>
+    </div>
+    <textarea id="import-transcript" rows="8" placeholder="Transkripsjon vises her…"></textarea>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px;" id="import-word-count"></div>
+  </div>
+
+</div>
+
+<!-- ══════════════ TRANSKRIPSJON ══════════════ -->
+<div class="section hidden" id="tab-trans">
+
+  <div class="card" id="trans-empty-card">
+    <div style="text-align:center;padding:30px 0;color:var(--muted);">
+      <div style="font-size:40px;margin-bottom:12px;">📝</div>
+      <div style="font-size:14px;">Ta opp eller importer en lydfil<br>for å få transkripsjon her</div>
+    </div>
+  </div>
+
+  <div id="trans-content-card" style="display:none" class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div class="card-label" style="margin:0">Transkripsjon</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-sm" onclick="copyTrans()">📋 Kopier</button>
+        <button class="btn-sm" onclick="sendTransToRapport()">📋 → Rapport</button>
+      </div>
+    </div>
+    <div id="trans-meta" style="font-size:11px;color:var(--muted);margin-bottom:10px;"></div>
+    <textarea id="trans-text" rows="14" placeholder="Transkripsjon vises her…" oninput="updateTransWordCount()"></textarea>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px;" id="trans-word-count"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+      <button class="btn-primary" onclick="exportTransTxt()">⬇️ Last ned TXT</button>
+      <button class="btn-secondary" onclick="exportTransMd()">⬇️ Markdown</button>
+      <button class="btn-danger" onclick="clearTrans()">🗑️ Tøm</button>
+    </div>
+  </div>
+
+  <div id="trans-loading-card" style="display:none" class="card">
+    <div style="text-align:center;padding:30px 0;">
+      <div style="font-size:36px;margin-bottom:12px;animation:spin 1s linear infinite;display:inline-block;">⏳</div>
+      <div style="font-size:14px;color:var(--muted);" id="trans-loading-txt">Transkriberer med Whisper…</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════ RAPPORT ══════════════ -->
+<div class="section hidden" id="tab-rapport">
+
+  <div class="card">
+    <div class="card-label">Prosjektinformasjon</div>
+    <div class="field-row">
+      <div>
+        <div class="field-label">Prosjekt</div>
+        <input type="text" id="r-prosjekt" placeholder="Prosjektnavn…">
+      </div>
+      <div>
+        <div class="field-label">Dato</div>
+        <input type="date" id="r-dato">
+      </div>
+    </div>
+    <div class="field-row">
+      <div>
+        <div class="field-label">Sted / Adresse</div>
+        <input type="text" id="r-sted" placeholder="Befaring adresse…">
+      </div>
+      <div>
+        <div class="field-label">Deltakere</div>
+        <input type="text" id="r-deltakere" placeholder="Navn, firma…">
+      </div>
+    </div>
+    <div class="field-row single">
+      <div>
+        <div class="field-label">Utarbeidet av</div>
+        <input type="text" id="r-av" placeholder="Ditt navn…">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div class="card-label" style="margin:0">Transkripsjon / Notater</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-sm" onclick="copyRapport()">📋 Kopier</button>
+        <button class="btn-danger" onclick="clearRapport()">🗑️</button>
+      </div>
+    </div>
+    <textarea id="r-tekst" rows="12" placeholder="Transkripsjon og notater vises her. Du kan også skrive direkte…"></textarea>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px;" id="r-word-count"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Eksporter rapport</div>
+    <div class="fmt-grid">
+      <button class="fmt-btn selected" id="fmt-txt" onclick="setFmt('txt')"><div class="fi">📄</div><div class="fl">TXT</div></button>
+      <button class="fmt-btn" id="fmt-md" onclick="setFmt('md')"><div class="fi">📝</div><div class="fl">Markdown</div></button>
+      <button class="fmt-btn" id="fmt-json" onclick="setFmt('json')"><div class="fi">🗂️</div><div class="fl">JSON</div></button>
+    </div>
+    <button class="btn-record" onclick="exportRapport()">⬇️ Last ned rapport</button>
+  </div>
+
+</div>
+
+<!-- Install banner -->
+<div id="install-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:640px;margin:0 auto;background:#FFC000;color:#0D0E12;padding:14px 16px;display:none;align-items:center;gap:10px;z-index:100;box-shadow:0 -4px 20px rgba(0,0,0,0.3);">
+  <div style="flex:1;">
+    <div style="font-weight:700;font-size:14px;">📲 Installer som app!</div>
+    <div style="font-size:12px;opacity:0.8;">Legg til på hjemskjermen for raskere tilgang</div>
+  </div>
+  <button onclick="installApp()" style="background:#0D0E12;color:#FFC000;border:none;border-radius:10px;padding:10px 18px;font-weight:700;font-size:14px;cursor:pointer;white-space:nowrap;">Installer</button>
+  <button onclick="document.getElementById('install-banner').style.display='none'" style="background:none;border:none;font-size:22px;cursor:pointer;color:#0D0E12;padding:0 4px;">×</button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────────
+let mediaRecorder = null, audioChunks = [], stream = null;
+let audioCtx = null, analyserNode = null;
+let isRecording = false, isPaused = false;
+let elapsed = 0, timerInterval = null, animFrame = null;
+let recognition = null, liveEnabled = false, liveFinalText = '';
+let importAudio = null, importPlaying = false;
+let exportFmt = 'txt';
+let fileWritable = null;
+
+const groqKey = () => localStorage.getItem('groq_key') || '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';
+
+function saveGroqKey() {
+  const v = document.getElementById('groq-key').value.trim();
+  if (v) { localStorage.setItem('groq_key', v); toast('Groq-nøkkel lagret! ✅'); }
+  toggleKeyPanel();
+}
+
+// ── Utils ──────────────────────────────────────────────────────────────────────
+function fmtTime(s) { s=Math.floor(s||0); return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0'); }
+function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function toast(msg, type='ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = type==='err'?'#FF4D6D':type==='warn'?'#FFC000':'#22D3A4';
+  el.style.color = type==='warn'?'#0D0E12':'#fff';
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 3500);
+}
+function toggleKeyPanel() {
+  const p = document.getElementById('key-panel');
+  p.classList.toggle('open');
+  if (p.classList.contains('open')) document.getElementById('groq-key').value = groqKey();
+}
+function showTab(id, btn) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.add('hidden'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.remove('hidden');
+  btn.classList.add('active');
+}
+
+// ── Wake lock ──────────────────────────────────────────────────────────────────
+let wakeLock = null;
+async function requestWakeLock() {
+  if ('wakeLock' in navigator) {
+    try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e) {}
+  }
+}
+function releaseWakeLock() {
+  if (wakeLock) { wakeLock.release(); wakeLock = null; }
+}
+
+// ── Live transcription – hybrid Groq chunks + Web Speech fallback ──────────────
+let liveChunkRecorder = null;
+let liveChunkInterval = null;
+let groqLiveMode = false;
+
+function toggleLive(on) {
+  liveEnabled = on;
+  document.getElementById('live-box').style.display = on ? 'block' : 'none';
+  document.getElementById('live-status').style.display = on ? 'flex' : 'none';
+  if (!on) { stopRecognition(); stopGroqLive(); }
+  else if (isRecording) { clearLive(); startBestRecognition(); }
+}
+
+function startBestRecognition() {
+  if (groqKey()) {
+    // Use Groq chunked mode – works on all devices
+    groqLiveMode = true;
+    startGroqLive();
+  } else {
+    // Fall back to Web Speech API
+    groqLiveMode = false;
+    startWebSpeech();
+  }
+}
+
+// ── Groq chunked live transcription ───────────────────────────────────────────
+function startGroqLive() {
+  document.getElementById('live-dot').classList.add('active');
+  document.getElementById('live-status-txt').textContent = 'Groq – lytter…';
+  // Capture audio in 8-second chunks and transcribe each
+  liveChunkInterval = setInterval(() => {
+    if (!isRecording || isPaused || !liveEnabled) return;
+    transcribeLiveChunk();
+  }, 8000);
+}
+
+function stopGroqLive() {
+  if (liveChunkInterval) { clearInterval(liveChunkInterval); liveChunkInterval = null; }
+  document.getElementById('live-dot').classList.remove('active');
+  document.getElementById('live-status-txt').textContent = 'Stoppet';
+}
+
+async function transcribeLiveChunk() {
+  // Grab the last ~8 seconds of audio chunks
+  if (audioChunks.length === 0) return;
+  const chunkSnapshot = audioChunks.slice(-40); // last ~8 sec at 200ms intervals
+  const blob = new Blob(chunkSnapshot, { type: 'audio/webm' });
+  if (blob.size < 1000) return; // too small, skip
+
+  document.getElementById('live-status-txt').textContent = 'Transkriberer…';
+  try {
+    const fd = new FormData();
+    fd.append('file', blob, 'chunk.webm');
+    fd.append('model', 'whisper-large-v3');
+    fd.append('language', 'no');
+    fd.append('response_format', 'text');
+    const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + groqKey() },
+      body: fd
+    });
+    if (!res.ok) return;
+    const text = (await res.text()).trim();
+    if (text && text.length > 2) {
+      liveFinalText += text + ' ';
+      document.getElementById('live-placeholder').style.display = 'none';
+      document.getElementById('live-final').textContent = liveFinalText;
+      document.getElementById('live-interim').textContent = '';
+      // Auto-scroll
+      const box = document.getElementById('live-box');
+      box.scrollTop = box.scrollHeight;
+    }
+    document.getElementById('live-status-txt').textContent = 'Groq – lytter…';
+  } catch(e) {
+    document.getElementById('live-status-txt').textContent = 'Groq – lytter…';
+  }
+}
+
+// ── Web Speech fallback (PC/desktop) ──────────────────────────────────────────
+function startWebSpeech() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    toast('Legg inn Groq-nøkkel (⚙️) for sanntidstranskripsjon på telefon', 'warn');
+    document.getElementById('live-status-txt').textContent = 'Ingen nøkkel – kun PC';
+    return;
+  }
+  try {
+    if (recognition) { try { recognition.stop(); } catch(e) {} }
+    recognition = new SR();
+    recognition.lang = 'nb-NO';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+    recognition.onstart = () => {
+      document.getElementById('live-dot').classList.add('active');
+      document.getElementById('live-status-txt').textContent = 'Nettleser – lytter…';
+    };
+    recognition.onresult = e => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) liveFinalText += t + ' ';
+        else interim += t;
+      }
+      document.getElementById('live-placeholder').style.display = 'none';
+      document.getElementById('live-final').textContent = liveFinalText;
+      document.getElementById('live-interim').textContent = interim;
+    };
+    recognition.onerror = e => {
+      if (e.error === 'not-allowed') toast('Mikrofonillatelse nektet', 'err');
+      else if (e.error !== 'no-speech' && e.error !== 'aborted') console.log('Speech:', e.error);
+    };
+    recognition.onend = () => {
+      if (isRecording && !isPaused && liveEnabled && !groqLiveMode) {
+        setTimeout(() => { try { recognition.start(); } catch(e) {} }, 300);
+      } else {
+        document.getElementById('live-dot').classList.remove('active');
+        document.getElementById('live-status-txt').textContent = 'Stoppet';
+      }
+    };
+    recognition.start();
+  } catch(err) {
+    toast('Web Speech feilet: ' + err.message, 'err');
+  }
+}
+
+function stopRecognition() {
+  stopGroqLive();
+  if (recognition) { try { recognition.stop(); } catch(e) {} recognition = null; }
+  document.getElementById('live-dot').classList.remove('active');
+  document.getElementById('live-status-txt').textContent = 'Klar';
+}
+
+function stopRecognition() {
+  if (recognition) { try { recognition.stop(); } catch(e) {} recognition = null; }
+  document.getElementById('live-dot').classList.remove('active');
+  document.getElementById('live-status-txt').textContent = 'Klar';
+}
+
+function clearLive() {
+  liveFinalText = '';
+  document.getElementById('live-final').textContent = '';
+  document.getElementById('live-interim').textContent = '';
+  document.getElementById('live-placeholder').style.display = 'inline';
+}
+
+function sendLiveToRapport() {
+  const text = liveFinalText.trim();
+  if (!text) { toast('Ingen tekst å sende', 'err'); return; }
+  const existing = document.getElementById('r-tekst').value;
+  document.getElementById('r-tekst').value = existing ? existing + '\n\n' + text : text;
+  updateWordCount();
+  showTab('rapport', document.querySelectorAll('.tab')[2]);
+  toast('Tekst sendt til rapport! 📋');
+}
+
+// ── Recording ──────────────────────────────────────────────────────────────────
+async function startRec() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = audioCtx.createMediaStreamSource(stream);
+    analyserNode = audioCtx.createAnalyser();
+    analyserNode.fftSize = 256;
+    src.connect(analyserNode);
+
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+    mediaRecorder = new MediaRecorder(stream, { mimeType });
+    audioChunks = [];
+    mediaRecorder.ondataavailable = e => { if(e.data.size>0) audioChunks.push(e.data); };
+    mediaRecorder.onstop = finalizeRec;
+    mediaRecorder.start(200);
+
+    isRecording = true; isPaused = false; elapsed = 0;
+    document.getElementById('rec-badge').style.display = 'flex';
+    document.getElementById('rec-btns').style.display = 'none';
+    document.getElementById('rec-btns-active').style.display = 'flex';
+    timerInterval = setInterval(()=>{ elapsed++; document.getElementById('rec-timer').textContent=fmtTime(elapsed); }, 1000);
+    drawWaveform();
+    requestWakeLock();
+    // Show notification if permission granted
+    if (Notification.permission === 'granted') {
+      new Notification('AI Audio Studio', { body: 'Opptak pågår…', icon: 'icon-192.png', tag: 'recording', silent: true });
+    } else if (Notification.permission !== 'denied') {
+      Notification.requestPermission();
+    }
+    if (liveEnabled) { clearLive(); startBestRecognition(); }
+  } catch(err) {
+    toast('Mikrofonillatelse nektet: ' + err.message, 'err');
+  }
+}
+
+function pauseRec() {
+  if (!mediaRecorder) return;
+  if (isPaused) {
+    mediaRecorder.resume();
+    timerInterval = setInterval(()=>{ elapsed++; document.getElementById('rec-timer').textContent=fmtTime(elapsed); }, 1000);
+    document.getElementById('btn-pause').textContent = '⏸️ Pause';
+    isPaused = false; drawWaveform();
+    if (liveEnabled) startBestRecognition();
+  } else {
+    mediaRecorder.pause(); clearInterval(timerInterval);
+    document.getElementById('btn-pause').textContent = '▶️ Fortsett';
+    isPaused = true; cancelAnimationFrame(animFrame);
+    if (recognition) try { recognition.stop(); } catch(e) {}
+  }
+}
+
+function stopRec() {
+  clearInterval(timerInterval); cancelAnimationFrame(animFrame);
+  if (mediaRecorder) mediaRecorder.stop();
+  stream?.getTracks().forEach(t=>t.stop());
+  isRecording = false; isPaused = false;
+  stopRecognition();
+  document.getElementById('rec-badge').style.display = 'none';
+  document.getElementById('rec-btns').style.display = 'flex';
+  document.getElementById('rec-btns-active').style.display = 'none';
+  document.getElementById('btn-pause').textContent = '⏸️ Pause';
+  clearCanvas();
+  releaseWakeLock();
+}
+
+function finalizeRec() {
+  const blob = new Blob(audioChunks, { type: 'audio/webm' });
+  const url = URL.createObjectURL(blob);
+
+  // Auto-download the audio file
+  const name = 'Opptak-' + new Date().toISOString().slice(0,16).replace('T','-');
+  const a = document.createElement('a'); a.href=url; a.download=name+'.webm'; a.click();
+
+  // Send live transcript to transkripsjon tab if exists
+  if (liveFinalText.trim()) {
+    setTranskripsjon(liveFinalText.trim(), 'Sanntidstranskripsjon · ' + new Date().toLocaleString('no-NO'));
+  }
+
+  // Auto-transcribe with Groq if enabled
+  const autoTrans = document.getElementById('auto-trans-toggle').checked;
+  if (autoTrans) {
+    toast('Opptak lagret! Transkriberer automatisk… ⏳', 'warn');
+    autoTranscribeBlob(blob);
+  } else {
+    toast('Opptak lagret i nedlastinger! 💾');
+  }
+}
+
+async function autoTranscribeBlob(blob) {
+  // Switch to transkripsjon tab
+  showTab('trans', document.querySelectorAll('.tab')[2]);
+  document.getElementById('trans-empty-card').style.display = 'none';
+  document.getElementById('trans-content-card').style.display = 'none';
+  document.getElementById('trans-loading-card').style.display = 'block';
+  document.getElementById('trans-loading-txt').textContent = 'Transkriberer med Whisper AI…';
+
+  try {
+    const fd = new FormData();
+    fd.append('file', blob, 'audio.webm');
+    fd.append('model', 'whisper-large-v3');
+    fd.append('language', 'no');
+    fd.append('response_format', 'text');
+    const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + groqKey() },
+      body: fd
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const text = await res.text();
+    setTranskripsjon(text.trim(), 'Whisper AI · ' + new Date().toLocaleString('no-NO'));
+    toast('Transkripsjon ferdig! ✅');
+  } catch(err) {
+    document.getElementById('trans-loading-card').style.display = 'none';
+    document.getElementById('trans-empty-card').style.display = 'block';
+    toast('Transkripsjon feilet: ' + err.message, 'err');
+  }
+}
+
+function setTranskripsjon(text, meta) {
+  document.getElementById('trans-loading-card').style.display = 'none';
+  document.getElementById('trans-empty-card').style.display = 'none';
+  document.getElementById('trans-content-card').style.display = 'block';
+  document.getElementById('trans-text').value = text;
+  document.getElementById('trans-meta').textContent = meta || '';
+  updateTransWordCount();
+}
+
+function updateTransWordCount() {
+  const text = document.getElementById('trans-text').value;
+  const words = text.trim() ? text.trim().split(' ').length : 0;
+  document.getElementById('trans-word-count').textContent = words + ' ord';
+}
+
+function copyTrans() {
+  navigator.clipboard.writeText(document.getElementById('trans-text').value).then(()=>toast('Kopiert! 📋'));
+}
+
+function sendTransToRapport() {
+  const text = document.getElementById('trans-text').value.trim();
+  if (!text) { toast('Ingen tekst å sende', 'err'); return; }
+  const existing = document.getElementById('r-tekst').value;
+  document.getElementById('r-tekst').value = existing ? existing+'
+
+'+text : text;
+  updateWordCount();
+  showTab('rapport', document.querySelectorAll('.tab')[3]);
+  toast('Sendt til rapport! 📋');
+}
+
+function exportTransTxt() {
+  const text = document.getElementById('trans-text').value;
+  if (!text) { toast('Ingen tekst', 'err'); return; }
+  dlText('Transkripsjon-'+new Date().toISOString().slice(0,10)+'.txt', text, 'text/plain');
+}
+
+function exportTransMd() {
+  const text = document.getElementById('trans-text').value;
+  if (!text) { toast('Ingen tekst', 'err'); return; }
+  const md = '# Transkripsjon
+**Dato:** '+new Date().toLocaleDateString('no-NO')+'
+
+'+text;
+  dlText('Transkripsjon-'+new Date().toISOString().slice(0,10)+'.md', md, 'text/markdown');
+}
+
+function clearTrans() {
+  if (!confirm('Tøm transkripsjon?')) return;
+  document.getElementById('trans-text').value = '';
+  document.getElementById('trans-content-card').style.display = 'none';
+  document.getElementById('trans-empty-card').style.display = 'block';
+}
+
+// ── Waveform ───────────────────────────────────────────────────────────────────
+function drawWaveform() {
+  if (!analyserNode || !isRecording || isPaused) return;
+  const canvas = document.getElementById('waveform-canvas');
+  const ctx = canvas.getContext('2d');
+  const buf = new Uint8Array(analyserNode.frequencyBinCount);
+  function frame() {
+    if (!isRecording || isPaused) return;
+    animFrame = requestAnimationFrame(frame);
+    analyserNode.getByteFrequencyData(buf);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const bars=48, bw=canvas.width/bars-2;
+    for(let i=0;i<bars;i++){
+      const v=buf[Math.floor(i/bars*buf.length)]/255;
+      const h=Math.max(4,v*canvas.height*0.85);
+      ctx.fillStyle=`rgba(255,192,0,${0.35+v*0.65})`;
+      ctx.beginPath(); ctx.roundRect(i*(bw+2),(canvas.height-h)/2,bw,h,3); ctx.fill();
+    }
+  }
+  frame();
+}
+function clearCanvas() { const c=document.getElementById('waveform-canvas'); c.getContext('2d').clearRect(0,0,c.width,c.height); }
+
+// ── Import ─────────────────────────────────────────────────────────────────────
+function importFile(e) {
+  const file = e.target.files[0]; if(!file) return;
+  const url = URL.createObjectURL(file);
+  document.getElementById('import-filename').textContent = file.name;
+  document.getElementById('import-meta').textContent = (file.size/1024/1024).toFixed(1)+' MB';
+  const audio = document.getElementById('import-audio');
+  audio.src = url;
+  audio.onloadedmetadata = () => {
+    document.getElementById('import-meta').textContent += ' · ' + fmtTime(audio.duration);
+    document.getElementById('import-time').textContent = fmtTime(audio.duration);
+  };
+  document.getElementById('import-player-card').style.display = 'block';
+  document.getElementById('import-transcript-card').style.display = 'none';
+  document.getElementById('import-transcript').value = '';
+  e.target.value = '';
+  toast('Fil importert! ✅');
+}
+
+function toggleImportPlay() {
+  const audio = document.getElementById('import-audio');
+  if (audio.paused) { audio.play(); document.getElementById('import-play-icon').textContent='⏸️'; importPlaying=true; }
+  else { audio.pause(); document.getElementById('import-play-icon').textContent='▶️'; importPlaying=false; }
+}
+function updateImportProgress() {
+  const audio = document.getElementById('import-audio');
+  const pct = audio.duration ? (audio.currentTime/audio.duration*100) : 0;
+  document.getElementById('import-fill').style.width = pct+'%';
+  document.getElementById('import-time').textContent = fmtTime(audio.currentTime)+' / '+fmtTime(audio.duration);
+}
+function importEnded() { document.getElementById('import-play-icon').textContent='▶️'; importPlaying=false; }
+function seekImport(e) {
+  const audio=document.getElementById('import-audio');
+  const bar=e.currentTarget;
+  const rect=bar.getBoundingClientRect();
+  audio.currentTime=(e.clientX-rect.left)/rect.width*audio.duration;
+}
+
+async function transcribeImport() {
+  const key = groqKey();
+  if (!key) { toast('Legg inn Groq API-nøkkel i ⚙️', 'err'); return; }
+  const audio = document.getElementById('import-audio');
+  if (!audio.src) { toast('Ingen fil importert', 'err'); return; }
+  const btn = document.getElementById('btn-transcribe');
+  btn.textContent = '⏳ Transkriberer…'; btn.disabled = true;
+  toast('Transkriberer med Whisper… ⏳', 'warn');
+  try {
+    const resp = await fetch(audio.src);
+    const blob = await resp.blob();
+    const fd = new FormData();
+    fd.append('file', blob, 'audio.webm');
+    fd.append('model', 'whisper-large-v3');
+    fd.append('language', 'no');
+    fd.append('response_format', 'text');
+    const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer '+key },
+      body: fd
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const text = await res.text();
+    document.getElementById('import-transcript').value = text;
+    document.getElementById('import-transcript-card').style.display = 'block';
+    const words = text.split(' ').length;
+    document.getElementById('import-word-count').textContent = words + ' ord';
+    toast('Transkripsjon ferdig! ✅');
+  } catch(err) {
+    toast('Feil: '+err.message, 'err');
+  }
+  btn.textContent = '✨ Transkriber igjen'; btn.disabled = false;
+}
+
+function sendImportToRapport() {
+  const text = document.getElementById('import-transcript').value.trim();
+  if (!text) { toast('Ingen transkripsjon å sende', 'err'); return; }
+  const existing = document.getElementById('r-tekst').value;
+  document.getElementById('r-tekst').value = existing ? existing+'\n\n'+text : text;
+  updateWordCount();
+  showTab('rapport', document.querySelectorAll('.tab')[2]);
+  toast('Sendt til rapport! 📋');
+}
+
+// ── Rapport ────────────────────────────────────────────────────────────────────
+function updateWordCount() {
+  const text = document.getElementById('r-tekst').value;
+  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  document.getElementById('r-word-count').textContent = words + ' ord';
+}
+document.getElementById('r-tekst').addEventListener('input', updateWordCount);
+
+function setFmt(fmt) {
+  exportFmt = fmt;
+  document.querySelectorAll('.fmt-btn').forEach(b=>b.classList.remove('selected'));
+  document.getElementById('fmt-'+fmt).classList.add('selected');
+}
+
+function getRapportData() {
+  return {
+    prosjekt: document.getElementById('r-prosjekt').value.trim(),
+    dato: document.getElementById('r-dato').value,
+    sted: document.getElementById('r-sted').value.trim(),
+    deltakere: document.getElementById('r-deltakere').value.trim(),
+    av: document.getElementById('r-av').value.trim(),
+    tekst: document.getElementById('r-tekst').value.trim(),
+  };
+}
+
+function exportRapport() {
+  const d = getRapportData();
+  if (!d.tekst) { toast('Ingen tekst i rapporten', 'err'); return; }
+  const dato = d.dato || new Date().toLocaleDateString('no-NO');
+  const filename = (d.prosjekt || 'Rapport') + '-' + dato;
+
+  if (exportFmt === 'txt') {
+    const lines = [
+      'BEFARINGSRAPPORT – NOVAFORM AS',
+      '='.repeat(40),
+      d.prosjekt ? 'Prosjekt:    ' + d.prosjekt : '',
+      d.dato ? 'Dato:        ' + d.dato : '',
+      d.sted ? 'Sted:        ' + d.sted : '',
+      d.deltakere ? 'Deltakere:   ' + d.deltakere : '',
+      d.av ? 'Utarbeidet:  ' + d.av : '',
+      '='.repeat(40),
+      '',
+      'TRANSKRIPSJON / NOTATER',
+      '-'.repeat(40),
+      d.tekst
+    ].filter(Boolean).join('\n');
+    dlText(filename+'.txt', lines, 'text/plain');
+
+  } else if (exportFmt === 'md') {
+    const lines = [
+      '# Befaringsrapport – Novaform AS',
+      '',
+      '| Felt | Verdi |',
+      '|------|-------|',
+      d.prosjekt ? `| Prosjekt | ${d.prosjekt} |` : '',
+      d.dato ? `| Dato | ${d.dato} |` : '',
+      d.sted ? `| Sted | ${d.sted} |` : '',
+      d.deltakere ? `| Deltakere | ${d.deltakere} |` : '',
+      d.av ? `| Utarbeidet av | ${d.av} |` : '',
+      '',
+      '## Transkripsjon / Notater',
+      '',
+      d.tekst
+    ].filter(Boolean).join('\n');
+    dlText(filename+'.md', lines, 'text/markdown');
+
+  } else if (exportFmt === 'json') {
+    const obj = { ...d, dato, eksportert: new Date().toISOString(), firma: 'Novaform AS' };
+    dlText(filename+'.json', JSON.stringify(obj, null, 2), 'application/json');
+  }
+}
+
+function dlText(filename, content, type) {
+  const blob = new Blob([content], { type: type+';charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  toast('Rapport eksportert! ⬇️');
+}
+
+function copyRapport() {
+  const d = getRapportData();
+  navigator.clipboard.writeText(d.tekst).then(()=>toast('Kopiert! 📋'));
+}
+
+function clearRapport() {
+  if (!confirm('Tøm all tekst i rapporten?')) return;
+  document.getElementById('r-tekst').value = '';
+  updateWordCount();
+  toast('Rapport tømt');
+}
+
+// ── Install prompt ────────────────────────────────────────────────────────────
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('install-banner').style.display = 'flex';
+});
+window.addEventListener('appinstalled', () => {
+  document.getElementById('install-banner').style.display = 'none';
+  toast('App installert! 🎉');
+});
+function installApp() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => {
+      deferredPrompt = null;
+      document.getElementById('install-banner').style.display = 'none';
+    });
+  }
+}
+
+// Set today's date
+document.getElementById('r-dato').value = new Date().toISOString().slice(0,10);
+
+// Service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
